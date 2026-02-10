@@ -1,92 +1,59 @@
-const CACHE_NAME = 'visite-risques-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/css/style.css',
-  '/js/app.js',
-  '/js/db.js',
-  '/js/auth.js',
-  '/js/utils.js',
-  '/js/scoring.js',
-  '/js/ui.js',
-  '/js/export.js',
-  '/js/dashboard.js',
-  '/manifest.json',
-  'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
-  'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
-  'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'
+const CACHE = "vr-cache-v1";
+
+const ASSETS = [
+  "/",
+  "/index.html",
+  "/manifest.json",
+  "/css/style.css",
+  "/js/app.js",
+  "/js/db.js",
+  "/js/auth.js",
+  "/js/scoring.js",
+  "/js/utils.js",
+  "/js/ui.js",
+  "/js/dashboard.js",
+  "/js/export.js",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png"
 ];
 
-// Install Service Worker
-self.addEventListener('install', event => {
+self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
+    caches.open(CACHE).then(cache => cache.addAll(ASSETS))
   );
+  self.skipWaiting();
 });
 
-// Fetch from cache first, then network
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        
-        // Clone the request
-        const fetchRequest = event.request.clone();
-        
-        return fetch(fetchRequest).then(response => {
-          // Check if valid response
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-          
-          // Clone the response
-          const responseToCache = response.clone();
-          
-          caches.open(CACHE_NAME)
-            .then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-          
-          return response;
-        });
-      })
-  );
-});
-
-// Activate Service Worker and clean old caches
-self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
-  
+self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    )
   );
+  self.clients.claim();
 });
 
-// Background sync for offline data
-self.addEventListener('sync', event => {
-  if (event.tag === 'sync-data') {
-    event.waitUntil(syncData());
+self.addEventListener("fetch", event => {
+  const req = event.request;
+
+  // Network-first for HTML
+  if (req.headers.get("accept")?.includes("text/html")) {
+    event.respondWith(
+      fetch(req).then(res => {
+        caches.open(CACHE).then(c => c.put(req, res.clone()));
+        return res;
+      }).catch(() => caches.match(req).then(r => r || caches.match("/index.html")))
+    );
+    return;
   }
-});
 
-async function syncData() {
-  // This will be called when network is available
-  // Send pending data to server
-  console.log('Syncing data...');
-}
+  // Cache-first for others
+  event.respondWith(
+    caches.match(req).then(cached =>
+      cached || fetch(req).then(res => {
+        caches.open(CACHE).then(c => c.put(req, res.clone()));
+        return res;
+      })
+    )
+  );
+});
