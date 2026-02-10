@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Application de collecte de visites de risques pour assureurs">
+    <meta name="theme-color" content="#2563eb">
+    <title>Visite de Risques - Assurance</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Chart.js for Dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- jsPDF for PDF Export -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <p>Chargement...</p>
+    </div>
+
+    <!-- Authentication Screen -->
+    <div id="authScreen" class="screen active">
+        <div class="auth-container">
+            <div class="logo">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </div>
+            <h1>Visite de Risques</h1>
+            <p class="subtitle">Application d'audit terrain</p>
+            
+            <form id="authForm" class="auth-form">
+                <div class="form-group">
+                    <label for="authEmail">Email</label>
+                    <input type="email" id="authEmail" placeholder="votre.email@compagnie.fr" required>
+                </div>
+                <div class="form-group">
+                    <label for="authPassword">Mot de passe</label>
+                    <input type="password" id="authPassword" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">
+                    Se connecter
+                </button>
+            </form>
+            
+            <div class="auth-info">
+                <p>Mode démo : utilisez n'importe quel email/mot de passe</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Screen -->
+    <div id="appScreen" class="screen">
+        <!-- Top Navigation -->
+        <nav class="top-nav">
+            <button id="menuBtn" class="icon-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+            <h1 id="screenTitle">Accueil</h1>
+            <button id="syncBtn" class="icon-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+            </button>
+        </nav>
+
+        <!-- Side Menu -->
+        <div id="sideMenu" class="side-menu">
+            <div class="menu-header">
+                <h2>Menu</h2>
+                <button id="closeMenuBtn" class="icon-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <ul class="menu-list">
+                <li><a href="#" data-view="home" class="active">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    </svg>
+                    Accueil
+                </a></li>
+                <li><a href="#" data-view="sites">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    Sites
+                </a></li>
+                <li><a href="#" data-view="visites">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                    Visites
+                </a></li>
+                <li><a href="#" data-view="dashboard">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    Dashboard
+                </a></li>
+                <li><a href="#" data-view="actions">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M9 11l3 3L22 4"></path>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                    </svg>
+                    Plan d'Actions
+                </a></li>
+            </ul>
+            <div class="menu-footer">
+                <button id="logoutBtn" class="btn btn-outline">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    Déconnexion
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main id="mainContent" class="main-content">
+            <!-- Home View -->
+            <div id="homeView" class="view active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="statSites">0</h3>
+                            <p>Sites</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="statVisites">0</h3>
+                            <p>Visites</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="statConstats">0</h3>
+                            <p>Constats</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon red">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="statNC">0</h3>
+                            <p>Non-Conformités</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="newVisitBtn" class="btn btn-primary btn-large">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Nouvelle Visite
+                    </button>
+                </div>
+
+                <div class="recent-section">
+                    <h2>Visites récentes</h2>
+                    <div id="recentVisitsList" class="list-container">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sites View -->
+            <div id="sitesView" class="view">
+                <div class="view-header">
+                    <h2>Sites</h2>
+                    <button id="addSiteBtn" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Nouveau Site
+                    </button>
+                </div>
+                <div id="sitesList" class="list-container">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Visites View -->
+            <div id="visitesView" class="view">
+                <div class="view-header">
+                    <h2>Visites</h2>
+                    <button id="addVisitBtn" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Nouvelle Visite
+                    </button>
+                </div>
+                <div id="visitesList" class="list-container">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Visite Detail View -->
+            <div id="visiteDetailView" class="view">
+                <div class="view-header">
+                    <button id="backToVisitesBtn" class="btn btn-outline">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                        Retour
+                    </button>
+                    <h2 id="visiteDetailTitle">Visite</h2>
+                    <button id="exportVisitBtn" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Exporter
+                    </button>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="info">Informations</button>
+                    <button class="tab-btn" data-tab="zones">Zones</button>
+                    <button class="tab-btn" data-tab="constats">Constats</button>
+                    <button class="tab-btn" data-tab="actions">Actions</button>
+                </div>
+
+                <div class="tab-content">
+                    <div id="tabInfo" class="tab-pane active">
+                        <div id="visiteInfo" class="info-container">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <div id="tabZones" class="tab-pane">
+                        <button id="addZoneBtn" class="btn btn-primary mb-3">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Ajouter une Zone
+                        </button>
+                        <div id="zonesList" class="list-container">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <div id="tabConstats" class="tab-pane">
+                        <button id="addConstatBtn" class="btn btn-primary mb-3">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Nouveau Constat
+                        </button>
+                        <div id="constatsList" class="list-container">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <div id="tabActions" class="tab-pane">
+                        <div id="actionsList" class="list-container">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard View -->
+            <div id="dashboardView" class="view">
+                <h2>Tableau de Bord</h2>
+                
+                <div class="dashboard-kpis">
+                    <div class="kpi-card">
+                        <h3 id="kpiTotalConstats">0</h3>
+                        <p>Total Constats</p>
+                    </div>
+                    <div class="kpi-card red">
+                        <h3 id="kpiNC">0</h3>
+                        <p>Non-Conformités</p>
+                    </div>
+                    <div class="kpi-card orange">
+                        <h3 id="kpiCritique">0</h3>
+                        <p>Critiques</p>
+                    </div>
+                    <div class="kpi-card green">
+                        <h3 id="kpiActionsClose">0%</h3>
+                        <p>Actions Closes</p>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Répartition par Criticité</h3>
+                    <canvas id="criticiteChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <h3>NC par Famille de Risques</h3>
+                    <canvas id="familleChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Heatmap Matrice 5×5 (Probabilité × Gravité)</h3>
+                    <div id="heatmapContainer" class="heatmap-container">
+                        <!-- Dynamically generated -->
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Top 10 Risques</h3>
+                    <div id="top10List" class="list-container">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions View -->
+            <div id="actionsView" class="view">
+                <div class="view-header">
+                    <h2>Plan d'Actions</h2>
+                    <button id="exportActionsBtn" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                        </svg>
+                        Exporter
+                    </button>
+                </div>
+                
+                <div class="filters">
+                    <select id="filterPriorite" class="form-control">
+                        <option value="">Toutes priorités</option>
+                        <option value="Critique">Critique</option>
+                        <option value="Élevé">Élevé</option>
+                        <option value="Modéré">Modéré</option>
+                        <option value="Faible">Faible</option>
+                    </select>
+                    <select id="filterStatut" class="form-control">
+                        <option value="">Tous statuts</option>
+                        <option value="Ouvert">Ouvert</option>
+                        <option value="En cours">En cours</option>
+                        <option value="Clos">Clos</option>
+                    </select>
+                </div>
+
+                <div id="allActionsList" class="list-container">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals will be created dynamically via JS -->
+    <div id="modalContainer"></div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/db.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/scoring.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/app.js"></script>
+    
+    <script>
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>
